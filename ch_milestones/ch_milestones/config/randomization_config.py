@@ -73,6 +73,9 @@ def pose_ranges(ranges):
 RANDOMIZATION_DEFAULTS = {
     "randomize_scene": True,
     "random_seed": -1,
+    "randomization_distribution": "normal",
+    "randomization_normal_stddevs": 3.0,
+    "randomization_normal_max_attempts": 50,
     **pose_ranges(jitter_ranges(TASK_BOARD_DEFAULTS, TASK_BOARD_JITTER)),
     **board_part_ranges(),
     **pose_ranges(jitter_ranges(CABLE_DEFAULTS, CABLE_JITTER)),

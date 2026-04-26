@@ -61,7 +61,35 @@ class SceneRandomizer:
             raise ValueError(f"{name}_min cannot be greater than {name}_max")
         if lower == upper:
             return fallback
-        return self.rng.uniform(lower, upper)
+
+        distribution = str(self.param("randomization_distribution")).strip().lower()
+        if distribution == "uniform":
+            return self.rng.uniform(lower, upper)
+        if distribution in ("normal", "gaussian"):
+            return self.truncated_normal(lower, upper, fallback)
+        raise ValueError("randomization_distribution must be 'uniform' or 'normal'")
+
+    def truncated_normal(self, lower, upper, fallback):
+        mean = min(max(float(fallback), float(lower)), float(upper))
+        stddevs = float(self.param("randomization_normal_stddevs"))
+        if stddevs <= 0.0:
+            raise ValueError("randomization_normal_stddevs must be greater than 0")
+
+        spread = max(abs(mean - lower), abs(upper - mean))
+        if spread <= 0.0:
+            return fallback
+
+        sigma = spread / stddevs
+        max_attempts = int(self.param("randomization_normal_max_attempts"))
+        if max_attempts <= 0:
+            raise ValueError("randomization_normal_max_attempts must be greater than 0")
+
+        value = mean
+        for _ in range(max_attempts):
+            value = self.rng.gauss(mean, sigma)
+            if lower <= value <= upper:
+                return value
+        return min(max(value, lower), upper)
 
     def param(self, name):
         return self.node.get_parameter(name).value
