@@ -97,10 +97,11 @@ When `randomize_scene:=true` (default), each reset randomizes:
 | Task board pose, SC targets | `sc_task_board_*_min/max`, default same as SFP |
 | Cable pose, SFP targets | `cable_*_min/max`, default no jitter |
 | Cable pose, SC targets | `sc_cable_*_min/max`, default no jitter around the SC cable pose |
+| Target-capable part presence | selected target forced present; other `nic_card_mount_*` and `sc_port_*` sampled with probability parameters |
 | Board part translations | part-specific ranges (e.g. `nic_card_mount`: -0.048 to 0.036) |
 | SC port translations | shared `sc_port_translation_min/max` range, default -0.06 to 0.055 |
 
-Randomization uses a configurable distribution (`normal` or `uniform`) controlled by `randomization_distribution`. Set `random_seed` to a positive value for reproducibility. SC targets use separate task-board and cable randomization parameters (`sc_task_board_*_min/max`, `sc_cable_*_min/max`) plus shared SC port parameters (`sc_port_translation_min/max`, `sc_port_roll_min/max`, `sc_port_pitch_min/max`, `sc_port_yaw_min/max`). The base scene values remain `task_board_*`, `cable_*`, `sc_port_0_*`, and `sc_port_1_*`.
+Randomization uses a configurable distribution (`normal` or `uniform`) controlled by `randomization_distribution`. Set `random_seed` to a positive value for reproducibility. When `randomize_distractor_board_part_presence:=true` (default), every reset forces the selected `target_module_name` present, then independently samples the other `nic_card_mount_*` and `sc_port_*` target-capable parts. Use `nic_card_mount_distractor_presence_probability` and `sc_port_distractor_presence_probability` to control those probabilities; both default to `0.3`. SC targets use separate task-board and cable randomization parameters (`sc_task_board_*_min/max`, `sc_cable_*_min/max`) plus shared SC port parameters (`sc_port_translation_min/max`, `sc_port_roll_min/max`, `sc_port_pitch_min/max`, `sc_port_yaw_min/max`). The base scene values remain `task_board_*`, `cable_*`, `sc_port_0_*`, and `sc_port_1_*`.
 
 ## Configuration Reference
 
@@ -205,7 +206,7 @@ pixi reinstall ros-kilted-ch-milestones
 
 SC targets use a separate oracle parameter set with an `sc_` prefix. For example, `sc_oracle_speed_scale`, `sc_oracle_approach_z_offset`, and `sc_oracle_alignment_fine_align_z_offset` apply only to SC episodes. Most defaults match the SFP values unless overridden.
 
-The SC fine-align height defaults lower than SFP: `sc_oracle_alignment_fine_align_z_offset:=0.05`.
+The SC fine-align height defaults lower than SFP: `sc_oracle_alignment_fine_align_z_offset:=0.125`.
 
 The SC Cartesian impedance also defaults firmer to resist cable drag: `sc_oracle_cartesian_stiffness:=[300,300,300,80,80,80]` and `sc_oracle_cartesian_damping:=[70,70,70,25,25,25]`.
 

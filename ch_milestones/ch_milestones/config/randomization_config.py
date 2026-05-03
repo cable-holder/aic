@@ -46,6 +46,12 @@ SC_PORT_PREFIX = "sc_port_"
 SC_TASK_BOARD_RANDOMIZATION_PREFIX = "sc_task_board"
 SC_CABLE_RANDOMIZATION_PREFIX = "sc_cable"
 
+DISTRACTOR_BOARD_PART_DEFAULTS = {
+    "randomize_distractor_board_part_presence": True,
+    "nic_card_mount_distractor_presence_probability": 0.3,
+    "sc_port_distractor_presence_probability": 0.3,
+}
+
 PART_TRANSLATION_RANGES = {
     "mount_rail": (-0.09625, 0.09625),
     "nic_card_mount": (-0.048, 0.036),
@@ -126,6 +132,7 @@ RANDOMIZATION_DEFAULTS = {
     "randomization_distribution": "normal",
     "randomization_normal_stddevs": 3.0,
     "randomization_normal_max_attempts": 50,
+    **DISTRACTOR_BOARD_PART_DEFAULTS,
     **pose_ranges(jitter_ranges(TASK_BOARD_DEFAULTS, SFP_TASK_BOARD_JITTER)),
     **board_part_ranges(),
     **sc_port_ranges(),

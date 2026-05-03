@@ -50,9 +50,9 @@ def test_sc_fine_align_hover_is_lower_than_sfp_default():
     name = "oracle_alignment_fine_align_z_offset"
 
     assert SFP_ORACLE_DEFAULTS[name] == 0.175
-    assert SC_ORACLE_DEFAULTS[name] == 0.05
+    assert SC_ORACLE_DEFAULTS[name] == 0.125
     assert ORACLE_DEFAULTS[sfp_oracle_parameter_name(name)] == 0.175
-    assert ORACLE_DEFAULTS[sc_oracle_parameter_name(name)] == 0.05
+    assert ORACLE_DEFAULTS[sc_oracle_parameter_name(name)] == 0.125
 
 
 def test_sc_impedance_is_firmer_than_sfp_default():
