@@ -12,6 +12,11 @@ from ch_milestones.config.scene_config import (
     cable_pose_for_task,
     ensure_target_board_part,
 )
+from ch_milestones.config.task_options import (
+    SC_TARGET_MODULES,
+    SFP_TARGET_MODULES,
+    target_board_part,
+)
 
 
 POSE_FIELDS = ("x", "y", "z", "roll", "pitch", "yaw")
@@ -54,9 +59,13 @@ class SceneRandomizer:
         )
         if not self.param("randomize_scene"):
             return scene
+        randomized_parts = self.randomized_distractor_board_part_presence(
+            scene.board_parts,
+            task,
+        )
         return SceneSample(
             self.randomized_pose(board_randomization_prefix, scene.board_pose),
-            self.randomized_board_parts(scene.board_parts),
+            self.randomized_board_parts(randomized_parts),
             self.randomized_pose(cable_randomization_prefix, scene.cable_pose),
         )
 
@@ -90,6 +99,35 @@ class SceneRandomizer:
                     randomized[key],
                 )
         return randomized
+
+    def randomized_distractor_board_part_presence(self, parts, task=None):
+        randomized = dict(parts)
+        target_part = target_board_part(task) if task is not None else None
+        if not self.param("randomize_distractor_board_part_presence"):
+            if target_part is not None:
+                return ensure_target_board_part(task, randomized)
+            return randomized
+
+        for name in (*SFP_TARGET_MODULES, *SC_TARGET_MODULES):
+            key = f"{name}_present"
+            if name == target_part:
+                randomized[key] = True
+                continue
+            randomized[key] = self.rng.random() < self.presence_probability(name)
+
+        if target_part is not None:
+            randomized = ensure_target_board_part(task, randomized)
+        return randomized
+
+    def presence_probability(self, name):
+        if name.startswith(SC_PORT_PREFIX):
+            param_name = "sc_port_distractor_presence_probability"
+        else:
+            param_name = "nic_card_mount_distractor_presence_probability"
+        probability = self.param(param_name)
+        if not 0.0 <= probability <= 1.0:
+            raise ValueError(f"{param_name} must be between 0.0 and 1.0")
+        return probability
 
     def randomization_key(self, name, field):
         if name.startswith(SC_PORT_PREFIX):
