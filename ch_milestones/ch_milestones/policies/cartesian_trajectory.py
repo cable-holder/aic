@@ -51,6 +51,22 @@ def pose_trajectory(start: Pose, goal: Pose, steps):
         yield interpolate_pose(start, goal, step / steps)
 
 
+def minimum_jerk_pose_trajectory(start: Pose, goal: Pose, steps):
+    for fraction in minimum_jerk_fractions(steps):
+        yield interpolate_pose(start, goal, fraction)
+
+
+def minimum_jerk_fractions(steps):
+    if steps < 1:
+        raise ValueError("Trajectory must have at least one step")
+    if steps == 1:
+        yield 1.0
+        return
+    denominator = max(1, steps - 1)
+    for step in range(steps):
+        yield minimum_jerk(step / float(denominator))
+
+
 def _pose_xyz(pose: Pose):
     return np.array([pose.position.x, pose.position.y, pose.position.z])
 

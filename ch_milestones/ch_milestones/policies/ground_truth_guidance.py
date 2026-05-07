@@ -141,43 +141,29 @@ class GroundTruthGuide:
 
     def alignment_gripper_pose(
         self,
-        port_transform: Transform,
+        orientation_ref: Transform,
+        position_ref: Transform,
         slerp_fraction: float = 1.0,
         position_fraction: float = 1.0,
         z_offset: float = 0.1,
         reset_xy_integrator: bool = False,
     ) -> Pose:
         """Find the gripper pose that aligns the plug with the port."""
-        q_port = (
-            port_transform.rotation.w,
-            port_transform.rotation.x,
-            port_transform.rotation.y,
-            port_transform.rotation.z,
+        plug, gripper = self.synchronized_transforms(
+            "base_link",
+            f"{self.task.cable_name}/{self.task.plug_name}_link",
+            "gripper/tcp",
         )
-        plug = self.transform(
-            "base_link", f"{self.task.cable_name}/{self.task.plug_name}_link"
-        )
-        q_plug = (
-            plug.rotation.w,
-            plug.rotation.x,
-            plug.rotation.y,
-            plug.rotation.z,
-        )
-        q_plug_inv = (
-            -q_plug[0],
-            q_plug[1],
-            q_plug[2],
-            q_plug[3],
-        )
-        q_diff = quaternion_multiply(q_port, q_plug_inv)
-        gripper = self.transform("base_link", "gripper/tcp")
         q_gripper = (
             gripper.rotation.w,
             gripper.rotation.x,
             gripper.rotation.y,
             gripper.rotation.z,
         )
-        q_gripper_target = quaternion_multiply(q_diff, q_gripper)
+        q_gripper_target = self.same_hemisphere(
+            self.target_quat(orientation_ref, plug, gripper),
+            q_gripper,
+        )
         q_gripper_slerp = quaternion_slerp(
             q_gripper, q_gripper_target, slerp_fraction
         )
@@ -187,36 +173,36 @@ class GroundTruthGuide:
             gripper.translation.y,
             gripper.translation.z,
         )
-        port_xy = (
-            port_transform.translation.x,
-            port_transform.translation.y,
+        position_xy = (
+            position_ref.translation.x,
+            position_ref.translation.y,
         )
         plug_xyz = (
             plug.translation.x,
             plug.translation.y,
             plug.translation.z,
         )
-        plug_tip_gripper_offset = (
-            gripper_xyz[0] - plug_xyz[0],
-            gripper_xyz[1] - plug_xyz[1],
-            gripper_xyz[2] - plug_xyz[2],
+        tcp_to_plug = quat2mat(q_gripper).T @ (
+            np.array(plug_xyz) - np.array(gripper_xyz)
         )
+        target_offset = quat2mat(q_gripper_slerp) @ tcp_to_plug
 
-        tip_x_error = port_xy[0] - plug_xyz[0]
-        tip_y_error = port_xy[1] - plug_xyz[1]
+        tip_x_error = position_xy[0] - plug_xyz[0]
+        tip_y_error = position_xy[1] - plug_xyz[1]
+        i_limit = self.param("oracle_alignment_integrator_limit")
 
         if reset_xy_integrator:
             self.tip_error_i = np.zeros(2)
         else:
             self.tip_error_i[0] = np.clip(
                 self.tip_error_i[0] + tip_x_error,
-                -0.05,
-                0.05,
+                -i_limit,
+                i_limit,
             )
             self.tip_error_i[1] = np.clip(
                 self.tip_error_i[1] + tip_y_error,
-                -0.05,
-                0.05,
+                -i_limit,
+                i_limit,
             )
 
         self.node.get_logger().info(
@@ -225,13 +211,32 @@ class GroundTruthGuide:
             f"integrators: {self.tip_error_i[0]:.3} , {self.tip_error_i[1]:.3}"
         )
 
-        i_gain = 0.15
+        i_gain = self.param("oracle_alignment_integral_gain")
 
-        target_x = port_xy[0] + i_gain * self.tip_error_i[0]
-        target_y = port_xy[1] + i_gain * self.tip_error_i[1]
+        target_x = position_xy[0] + i_gain * self.tip_error_i[0] - target_offset[0]
+        target_y = position_xy[1] + i_gain * self.tip_error_i[1] - target_offset[1]
         target_z = (
-            port_transform.translation.z + z_offset - plug_tip_gripper_offset[2]
+            position_ref.translation.z
+            + z_offset
+            - (gripper_xyz[2] - plug_xyz[2])
         )
+        goal_plug = np.array(
+            [
+                position_xy[0] + i_gain * self.tip_error_i[0],
+                position_xy[1] + i_gain * self.tip_error_i[1],
+                position_ref.translation.z + z_offset,
+            ]
+        )
+        self.last_gripper_pose_debug = {
+            "goal_plug": self.transform_from_xyz_quat(
+                goal_plug,
+                self._quat(orientation_ref),
+            ),
+            "desired_plug": self.transform_from_xyz_quat(
+                goal_plug,
+                self._quat(orientation_ref),
+            ),
+        }
 
         blend_xyz = (
             position_fraction * target_x + (1.0 - position_fraction) * gripper_xyz[0],
@@ -307,9 +312,8 @@ class GroundTruthGuide:
         q_port = self._quat(orientation_ref)
         q_plug = self._quat(plug)
         q_gripper = self._quat(gripper)
-        q_plug_inv = (-q_plug[0], q_plug[1], q_plug[2], q_plug[3])
         return quaternion_multiply(
-            quaternion_multiply(q_port, q_plug_inv),
+            quaternion_multiply(q_port, self.quat_inverse(q_plug)),
             q_gripper,
         )
 

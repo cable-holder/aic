@@ -1,29 +1,37 @@
-from ch_milestones.policies.oracle_stage_base import OracleStage
+from math import ceil
+
+from ch_milestones.policies.cartesian_trajectory import (
+    pose_from_transform,
+    pose_trajectory,
+)
+from ch_milestones.policies.stage_alignment import AlignmentStage
 
 
-class InsertStage(OracleStage):
+class InsertStage(AlignmentStage):
     stage = "insert"
 
     def run(self):
         self.begin()
         z_offset = self.param("oracle_alignment_fine_align_z_offset")
-        step_m = self.param("oracle_alignment_insert_step_meters")
+        end_z_offset = self.param("oracle_insert_end_z_offset")
+        segment_m = self.param("oracle_insert_step_meters")
+        command_step_m = self.param("oracle_alignment_insert_step_meters")
         command_period = self.param("oracle_alignment_command_period")
+        start = pose_from_transform(
+            self.policy.guide.transform("base_link", "gripper/tcp")
+        )
 
-        while True:
-            if z_offset < -0.015:
-                break
+        while z_offset > end_z_offset:
+            if self.policy.insertion_completed():
+                return
+            next_z_offset = max(end_z_offset, z_offset - segment_m)
+            steps = ceil((z_offset - next_z_offset) / command_step_m)
+            goal = self.target_pose(next_z_offset)
 
-            z_offset -= step_m
-            self.policy.get_logger().info(f"z_offset: {z_offset:0.5}")
-            pose = self.policy.guide.alignment_gripper_pose(
-                self.frames.port_ref,
-                slerp_fraction=1.0,
-                position_fraction=1.0,
-                z_offset=z_offset,
-            )
-            self.policy.set_pose_target(
-                move_robot=self.policy.move_robot,
-                pose=pose,
-            )
-            self.policy.sleep_for(command_period)
+            for pose in pose_trajectory(start, goal, steps):
+                if self.policy.insertion_completed():
+                    return
+                self.command_pose(pose, command_period)
+
+            start = goal
+            z_offset = next_z_offset

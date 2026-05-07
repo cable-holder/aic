@@ -47,6 +47,15 @@ class OracleMotionCommander:
             damping=self.policy.param("oracle_cartesian_damping"),
         )
         self.policy.sleep_for(self.policy.command_period())
+        debug = self.policy.guide.last_gripper_pose_debug
+        goal_plug = target_plug
+        if debug is not None:
+            goal_plug = (
+                debug.get("goal_plug")
+                or debug.get("desired_plug")
+                or target_plug
+            )
+        self.policy.divergence_guard.check(goal_plug)
 
     def pause_before_motion(self, target_pose, current, target_plug=None):
         pause_seconds = self.policy.param("oracle_debug_pause_before_motion_seconds")

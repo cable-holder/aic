@@ -1,8 +1,11 @@
-from ch_milestones.policies.oracle_stage_base import OracleStage
-from ch_milestones.policies.cartesian_trajectory import minimum_jerk
+from ch_milestones.policies.cartesian_trajectory import (
+    minimum_jerk_pose_trajectory,
+    pose_from_transform,
+)
+from ch_milestones.policies.stage_alignment import AlignmentStage
 
 
-class FineAlignStage(OracleStage):
+class FineAlignStage(AlignmentStage):
     stage = "fine_align"
 
     def run(self):
@@ -10,19 +13,16 @@ class FineAlignStage(OracleStage):
         z_offset = self.param("oracle_alignment_fine_align_z_offset")
         steps = int(self.param("oracle_alignment_fine_align_steps"))
         command_period = self.param("oracle_alignment_command_period")
+        start = pose_from_transform(
+            self.policy.guide.transform("base_link", "gripper/tcp")
+        )
+        goal = self.target_pose(z_offset, reset_xy_integrator=True)
 
-        denominator = max(1, steps - 1)
-        for t in range(steps):
-            interp_fraction = minimum_jerk(t / float(denominator))
-            pose = self.policy.guide.alignment_gripper_pose(
-                self.frames.port_ref,
-                slerp_fraction=interp_fraction,
-                position_fraction=interp_fraction,
-                z_offset=z_offset,
-                reset_xy_integrator=True,
-            )
-            self.policy.set_pose_target(
-                move_robot=self.policy.move_robot,
-                pose=pose,
-            )
-            self.policy.sleep_for(command_period)
+        for pose in minimum_jerk_pose_trajectory(start, goal, steps):
+            self.command_pose(pose, command_period)
+
+        for _ in range(
+            self.scaled_steps("oracle_fine_align_hold_steps", allow_zero=True)
+        ):
+            pose = self.target_pose(z_offset)
+            self.command_pose(pose, command_period)
