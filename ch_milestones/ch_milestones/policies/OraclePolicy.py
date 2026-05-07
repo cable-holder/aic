@@ -15,7 +15,16 @@ from ch_milestones.config.policy_config import (
     oracle_parameter_name,
 )
 from ch_milestones.config.task_config import validate_task
+from ch_milestones.policies.cartesian_trajectory import (
+    pose_from_transform,
+    pose_trajectory,
+)
+from ch_milestones.policies.oracle_completion import InsertionCompletionMonitor
 from ch_milestones.policies.oracle_debug_frames import OracleDebugFrames
+from ch_milestones.policies.oracle_divergence import (
+    OracleDivergenceGuard,
+    StageDivergenceError,
+)
 from ch_milestones.policies.ground_truth_guidance import GroundTruthGuide
 from ch_milestones.policies.oracle_frames import OracleFrames
 from ch_milestones.policies.oracle_motion import OracleMotionCommander
@@ -28,6 +37,8 @@ class OraclePolicy(Policy):
         super().__init__(parent_node)
         declare_oracle_parameters(parent_node)
         self._task = None
+        self._completion = None
+        self._last_commanded_pose = None
 
     def insert_cable(
         self,
@@ -46,17 +57,25 @@ class OraclePolicy(Policy):
             self._stages.coarse_align.run()
             self._stages.fine_align.run()
             self._stages.insert.run()
-        except TimeoutError as ex:
+        except (TimeoutError, StageDivergenceError) as ex:
             self.get_logger().error(str(ex))
             self._send_feedback(f"error:{ex}")
             return False
 
+        if self.insertion_completed():
+            self._send_feedback("completed:insertion_event")
+            return True
+
         self._send_feedback("settling")
         for _ in range(self.final_settle_steps()):
+            if self.insertion_completed():
+                self._send_feedback("completed:insertion_event")
+                return True
             self.sleep_for(self.command_period())
         return True
 
     def setup(self, task, move_robot, send_feedback):
+        self.close_completion_monitor()
         self._task = task
         self._guide = GroundTruthGuide(
             self._parent_node, task, param=self.param
@@ -65,11 +84,59 @@ class OraclePolicy(Policy):
         self._move_robot = move_robot
         self._send_feedback = send_feedback
         self._stage = None
+        self._last_commanded_pose = None
         self._debug_frames = OracleDebugFrames(
             self._parent_node, param=self.param
         )
         self._motion = OracleMotionCommander(self)
+        self._divergence_guard = OracleDivergenceGuard(self)
+        self._completion = self.completion_monitor()
         self._stages = OracleStageSet(self)
+
+    def completion_monitor(self):
+        if not self.param("oracle_stop_on_insertion_event"):
+            return None
+        return InsertionCompletionMonitor(
+            self._parent_node,
+            self.param("oracle_insertion_event_topic"),
+        )
+
+    def close_completion_monitor(self):
+        if self._completion is not None:
+            self._completion.close()
+            self._completion = None
+
+    def insertion_completed(self):
+        return self._completion is not None and self._completion.completed()
+
+    def handoff_target_to_current(self):
+        if self._last_commanded_pose is None:
+            return
+        current_tcp, current_plug = self.motion.current_tcp_and_plug()
+        goal = pose_from_transform(current_tcp)
+        for pose in pose_trajectory(
+            self._last_commanded_pose,
+            goal,
+            int(self.param("oracle_stage_handoff_steps")),
+        ):
+            target_plug = self.debug_frames.predicted_child_transform(
+                current_tcp,
+                current_plug,
+                pose,
+            )
+            self.debug_frames.publish_tcp_frames(
+                current_tcp,
+                pose,
+                current_plug,
+                target_plug,
+            )
+            self.set_pose_target(
+                self.move_robot,
+                pose,
+                stiffness=self.param("oracle_cartesian_stiffness"),
+                damping=self.param("oracle_cartesian_damping"),
+            )
+            self.sleep_for(self.command_period())
 
     @property
     def guide(self):
@@ -88,6 +155,10 @@ class OraclePolicy(Policy):
         return self._debug_frames
 
     @property
+    def divergence_guard(self):
+        return self._divergence_guard
+
+    @property
     def move_robot(self):
         return self._move_robot
 
@@ -98,10 +169,17 @@ class OraclePolicy(Policy):
     def validate_params(self):
         validate_oracle_params(self.param)
 
+    def set_pose_target(self, move_robot, pose, **kwargs):
+        self._last_commanded_pose = pose
+        super().set_pose_target(move_robot, pose, **kwargs)
+
     def set_stage(self, stage):
         if stage not in STAGES:
             raise ValueError(f"Unknown oracle stage: {stage}")
         self._stage = stage
+        self.guide.last_gripper_pose_debug = None
+        self.debug_frames.last_goal_plug = None
+        self.divergence_guard.reset(stage)
         self._send_feedback(f"stage:{stage}")
 
     def gripper_pose(self, **kwargs):

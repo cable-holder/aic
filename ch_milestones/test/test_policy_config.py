@@ -55,6 +55,48 @@ def test_sc_fine_align_hover_is_lower_than_sfp_default():
     assert ORACLE_DEFAULTS[sc_oracle_parameter_name(name)] == 0.125
 
 
+def test_stage_handoff_smooths_target_changes_by_default():
+    assert SFP_ORACLE_DEFAULTS["oracle_stage_handoff_steps"] == 5
+    assert SC_ORACLE_DEFAULTS["oracle_stage_handoff_steps"] == 5
+
+
+def test_oracle_runs_at_nominal_speed_by_default():
+    assert SFP_ORACLE_DEFAULTS["oracle_speed_scale"] == 1.0
+    assert SC_ORACLE_DEFAULTS["oracle_speed_scale"] == 1.0
+    assert SFP_ORACLE_DEFAULTS["oracle_alignment_fine_align_steps"] == 175
+    assert SC_ORACLE_DEFAULTS["oracle_alignment_fine_align_steps"] == 175
+    assert SFP_ORACLE_DEFAULTS["oracle_alignment_insert_step_meters"] == 0.0005
+    assert SC_ORACLE_DEFAULTS["oracle_alignment_insert_step_meters"] == 0.0005
+
+
+def test_coarse_align_rotation_step_is_slow_by_default():
+    name = "oracle_coarse_align_rotation_step_radians"
+
+    assert SFP_ORACLE_DEFAULTS[name] == 0.005
+    assert SC_ORACLE_DEFAULTS[name] == 0.005
+
+
+def test_divergence_guard_is_enabled_by_default():
+    assert SFP_ORACLE_DEFAULTS["oracle_divergence_check_enabled"]
+    assert SC_ORACLE_DEFAULTS["oracle_divergence_check_enabled"]
+    assert SFP_ORACLE_DEFAULTS["oracle_divergence_tolerance_meters"] == 0.10
+    assert SC_ORACLE_DEFAULTS["oracle_divergence_tolerance_meters"] == 0.10
+    assert SFP_ORACLE_DEFAULTS["oracle_divergence_consecutive_steps"] == 5
+
+
+def test_oracle_stops_on_insertion_event_by_default():
+    assert SFP_ORACLE_DEFAULTS["oracle_stop_on_insertion_event"]
+    assert SC_ORACLE_DEFAULTS["oracle_stop_on_insertion_event"]
+    assert SFP_ORACLE_DEFAULTS["oracle_insertion_event_topic"] == (
+        "/scoring/insertion_event"
+    )
+
+
+def test_fine_align_closed_loop_hold_is_longer_by_default():
+    assert SFP_ORACLE_DEFAULTS["oracle_fine_align_hold_steps"] == 60
+    assert SC_ORACLE_DEFAULTS["oracle_fine_align_hold_steps"] == 60
+
+
 def test_sc_impedance_is_firmer_than_sfp_default():
     stiffness = "oracle_cartesian_stiffness"
     damping = "oracle_cartesian_damping"

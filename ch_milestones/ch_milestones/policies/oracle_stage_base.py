@@ -18,6 +18,7 @@ class OracleStage:
 
     def begin(self):
         self.policy.set_stage(self.stage)
+        self.policy.handoff_target_to_current()
 
     def param(self, name):
         return self.policy.param(name)
@@ -51,3 +52,40 @@ class OracleStage:
 
     def progress(self, step, steps):
         return step / steps
+
+    def command_pose(self, pose, command_period=None, target_plug=None):
+        explicit_target_plug = target_plug is not None
+        current_tcp, current_plug = self.motion.current_tcp_and_plug()
+        if target_plug is None:
+            target_plug = self.policy.debug_frames.predicted_child_transform(
+                current_tcp,
+                current_plug,
+                pose,
+            )
+        goal_plug = None if explicit_target_plug else self.goal_plug()
+        if goal_plug is not None:
+            self.policy.debug_frames.publish_goal_plug_frame(goal_plug)
+        self.policy.debug_frames.publish_tcp_frames(
+            current_tcp,
+            pose,
+            current_plug,
+            target_plug,
+        )
+        self.policy.set_pose_target(
+            move_robot=self.policy.move_robot,
+            pose=pose,
+            stiffness=self.param("oracle_cartesian_stiffness"),
+            damping=self.param("oracle_cartesian_damping"),
+        )
+        self.policy.sleep_for(
+            self.policy.command_period()
+            if command_period is None
+            else command_period
+        )
+        self.policy.divergence_guard.check(goal_plug or target_plug)
+
+    def goal_plug(self):
+        debug = self.policy.guide.last_gripper_pose_debug
+        if debug is None:
+            return None
+        return debug.get("goal_plug") or debug.get("desired_plug")
