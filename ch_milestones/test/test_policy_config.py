@@ -56,17 +56,19 @@ def test_sc_fine_align_hover_is_lower_than_sfp_default():
 
 
 def test_stage_handoff_smooths_target_changes_by_default():
-    assert SFP_ORACLE_DEFAULTS["oracle_stage_handoff_steps"] == 5
-    assert SC_ORACLE_DEFAULTS["oracle_stage_handoff_steps"] == 5
+    assert SFP_ORACLE_DEFAULTS["oracle_stage_handoff_steps"] == 2
+    assert SC_ORACLE_DEFAULTS["oracle_stage_handoff_steps"] == 2
 
 
-def test_oracle_runs_at_nominal_speed_by_default():
-    assert SFP_ORACLE_DEFAULTS["oracle_speed_scale"] == 1.0
-    assert SC_ORACLE_DEFAULTS["oracle_speed_scale"] == 1.0
-    assert SFP_ORACLE_DEFAULTS["oracle_alignment_fine_align_steps"] == 175
-    assert SC_ORACLE_DEFAULTS["oracle_alignment_fine_align_steps"] == 175
-    assert SFP_ORACLE_DEFAULTS["oracle_alignment_insert_step_meters"] == 0.0005
-    assert SC_ORACLE_DEFAULTS["oracle_alignment_insert_step_meters"] == 0.0005
+def test_oracle_runs_fast_by_default():
+    assert SFP_ORACLE_DEFAULTS["oracle_speed_scale"] == 2.0
+    assert SC_ORACLE_DEFAULTS["oracle_speed_scale"] == 2.0
+    assert SFP_ORACLE_DEFAULTS["oracle_alignment_fine_align_steps"] == 87
+    assert SC_ORACLE_DEFAULTS["oracle_alignment_fine_align_steps"] == 87
+    assert SFP_ORACLE_DEFAULTS["oracle_alignment_insert_step_meters"] == 0.001
+    assert SC_ORACLE_DEFAULTS["oracle_alignment_insert_step_meters"] == 0.001
+    assert SFP_ORACLE_DEFAULTS["oracle_insert_step_meters"] == 0.001
+    assert SC_ORACLE_DEFAULTS["oracle_insert_step_meters"] == 0.001
 
 
 def test_coarse_align_rotation_step_is_slow_by_default():
