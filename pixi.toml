@@ -52,3 +52,7 @@ pyspacemouse = ">=2.0.0, <3"
 
 [activation]
 scripts = ["pixi_env_setup.sh"]
+
+[tasks]
+ch-data-process = "python -m ch_data_process"
+ch-frame-similarity = "python ch_data_process/frame_similarity.py"
