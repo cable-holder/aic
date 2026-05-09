@@ -127,6 +127,13 @@ class AicModel(LifecycleNode):
 
     def on_activate(self, state: LifecycleState) -> TransitionCallbackReturn:
         self.get_logger().info(f"on_activate()")
+        try:
+            activate = getattr(self._policy, "activate", None)
+            if activate is not None:
+                activate()
+        except Exception as e:
+            self.get_logger().error(f"Error activating policy: {e}")
+            return TransitionCallbackReturn.ERROR
         self.is_active = True
         return super().on_activate(state)
 
