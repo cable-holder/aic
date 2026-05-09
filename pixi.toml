@@ -27,6 +27,7 @@ ros-kilted-aic-training-interfaces = { path = "aic_utils/aic_training_interfaces
 ros-kilted-control-msgs = "*"                                                          # lerobot_robot_ros
 ros-kilted-geometry-msgs = "*"                                                         # lerobot_robot_ros
 ros-kilted-lerobot-robot-aic = { path = "aic_utils/lerobot_robot_aic" }
+ros-kilted-ch-inference = { path = "ch_inference" }
 ros-kilted-ch-milestones = { path = "ch_milestones" }
 ros-kilted-controller-manager-msgs = "*"
 ros-kilted-moveit-msgs = "*"                                                           # lerobot_robot_ros
@@ -43,7 +44,7 @@ setuptools = ">=71.0.0,<81.0.0"                                                 
 
 [pypi-dependencies]
 huggingface-hub = { version = "~=1.7" }
-lerobot = "==0.5.1"
+lerobot = { path = "/home/yl/Dev/lerobot", editable = true, extras = ["training", "smolvla", "pi"] }
 lerobot_robot_ros = { git = "https://github.com/koonpeng/lerobot-ros", rev = "87708d0ae14a724bca78f8ae9d55448332509a57", subdirectory = "lerobot_robot_ros" }
 lerobot_teleoperator_devices = { git = "https://github.com/koonpeng/lerobot-ros", rev = "87708d0ae14a724bca78f8ae9d55448332509a57", subdirectory = "lerobot_teleoperator_devices" }
 mujoco = "==3.5.0"
@@ -56,3 +57,5 @@ scripts = ["pixi_env_setup.sh"]
 [tasks]
 ch-data-process = "python -m ch_data_process"
 ch-frame-similarity = "python ch_data_process/frame_similarity.py"
+ch-action-rpy = "python ch_data_process/action_rpy.py"
+ch-postprocess-scheme = "python ch_data_process/postprocess_scheme.py"

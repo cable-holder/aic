@@ -63,6 +63,50 @@ videos/observation.images.center_camera/chunk-000/file-000.mp4
 videos/observation.images.center_camera/chunk-000/file-001.mp4
 ```
 
+Convert absolute Cartesian actions from quaternion to roll-pitch-yaw:
+
+```bash
+python ch_data_process/action_rpy.py \
+  --input-root ~/aic_results/ch_milestones_complete \
+  --output-root ~/aic_results/ch_milestones_complete_rpy \
+  --overwrite
+```
+
+or:
+
+```bash
+pixi run ch-action-rpy \
+  --input-root ~/aic_results/ch_milestones_complete \
+  --output-root ~/aic_results/ch_milestones_complete_rpy \
+  --overwrite
+```
+
+The output action is `[x, y, z, roll, pitch, yaw]` in radians. Media files are
+hard-linked by default and are not re-encoded; use `--media-mode copy` if the
+output is on a different filesystem.
+
+Convert a merged dataset to the VLA training scheme:
+
+```bash
+python ch_data_process/postprocess_scheme.py \
+  --input-root ~/aic_results/ch_milestones_complete \
+  --output-root ~/aic_results/ch_milestones_vla \
+  --overwrite
+```
+
+or:
+
+```bash
+pixi run ch-postprocess-scheme \
+  --input-root ~/aic_results/ch_milestones_complete \
+  --output-root ~/aic_results/ch_milestones_vla \
+  --overwrite
+```
+
+This strips phase suffixes from task prompts, drops `task.message_json`, converts
+`observation.state` TCP orientation to RPY, and converts `action` to absolute
+Cartesian `[x, y, z, roll, pitch, yaw]`.
+
 Check inter-frame image similarity for a merged or phase dataset:
 
 ```bash
